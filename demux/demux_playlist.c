@@ -316,10 +316,27 @@ static bool same_st(struct stat *st1, struct stat *st2)
     return st1->st_dev == st2->st_dev && st1->st_ino == st2->st_ino;
 }
 
+struct pl_dir_entry {
+    char* path;
+    char* name;
+    struct stat st;
+    bool is_dir;
+};
+
+static int cmp_dir_entry(const void *a, const void *b)
+{
+    struct pl_dir_entry *a_entry = (struct pl_dir_entry*) a;
+    struct pl_dir_entry *b_entry = (struct pl_dir_entry*) b;
+    if (a_entry->is_dir == b_entry->is_dir) {
+        return mp_natural_sort_cmp(a_entry->name, b_entry->name);
+    } else {
+        return a_entry->is_dir ? 1 : -1;
+    }
+}
+
 // Return true if this was a readable directory.
 static bool scan_dir(struct pl_parser *p, char *path,
-                     struct stat *dir_stack, int num_dir_stack,
-                     char ***files, int *num_files)
+                     struct stat *dir_stack, int num_dir_stack)
 {
     if (strlen(path) >= 8192 || num_dir_stack == MAX_DIR_STACK)
         return false; // things like mount bind loops
@@ -330,7 +347,10 @@ static bool scan_dir(struct pl_parser *p, char *path,
         return false;
     }
 
-    bool recursive = p->opts->playlist_recursive_dir;
+    struct pl_dir_entry *dir_entries = NULL;
+    int num_dir_entries = 0;
+    int path_len = strlen(path);
+
     struct dirent *ep;
     while ((ep = readdir(dp))) {
         if (ep->d_name[0] == '.')
@@ -342,7 +362,7 @@ static bool scan_dir(struct pl_parser *p, char *path,
         char *file = mp_path_join(p, path, ep->d_name);
 
         struct stat st;
-        if (recursive && stat(file, &st) == 0 && S_ISDIR(st.st_mode)) {
+        if (stat(file, &st) == 0 && S_ISDIR(st.st_mode)) {
             for (int n = 0; n < num_dir_stack; n++) {
                 if (same_st(&dir_stack[n], &st)) {
                     MP_VERBOSE(p, "Skip recursive entry: %s\n", file);
@@ -350,22 +370,33 @@ static bool scan_dir(struct pl_parser *p, char *path,
                 }
             }
 
-            dir_stack[num_dir_stack] = st;
-            scan_dir(p, file, dir_stack, num_dir_stack + 1, files, num_files);
+            struct pl_dir_entry d = {file, &file[path_len], st, true};
+            MP_TARRAY_APPEND(p, dir_entries, num_dir_entries, d);
         } else {
-            MP_TARRAY_APPEND(p, *files, *num_files, file);
+            struct pl_dir_entry f = {file, &file[path_len], .is_dir = false};
+            MP_TARRAY_APPEND(p, dir_entries, num_dir_entries, f);
         }
 
         skip: ;
     }
-
     closedir(dp);
-    return true;
-}
 
-static int cmp_filename(const void *a, const void *b)
-{
-    return mp_natural_sort_cmp(*(char **)a, *(char **)b);
+    if (dir_entries)
+        qsort(dir_entries, num_dir_entries, sizeof(dir_entries[0]), cmp_dir_entry);
+
+    bool recursive = p->opts->playlist_recursive_dir;
+    for (int n = 0; n < num_dir_entries; n++) {
+        if (recursive && dir_entries[n].is_dir) {
+            dir_stack[num_dir_stack] = dir_entries[n].st;
+            char *file = dir_entries[n].path;
+            scan_dir(p, file, dir_stack, num_dir_stack + 1);
+        }
+        else {
+            playlist_add_file(p->pl, dir_entries[n].path);
+        }
+    }
+
+    return true;
 }
 
 static int parse_dir(struct pl_parser *p)
@@ -379,21 +410,13 @@ static int parse_dir(struct pl_parser *p)
     if (!path)
         return -1;
 
-    char **files = NULL;
-    int num_files = 0;
     struct stat dir_stack[MAX_DIR_STACK];
 
-    scan_dir(p, path, dir_stack, 0, &files, &num_files);
-
-    if (files)
-        qsort(files, num_files, sizeof(files[0]), cmp_filename);
-
-    for (int n = 0; n < num_files; n++)
-        playlist_add_file(p->pl, files[n]);
+    scan_dir(p, path, dir_stack, 0);
 
     p->add_base = false;
 
-    return num_files > 0 ? 0 : -1;
+    return p->pl->num_entries > 0 ? 0 : -1;
 }
 
 #define MIME_TYPES(...) \

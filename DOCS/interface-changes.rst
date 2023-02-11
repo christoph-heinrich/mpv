@@ -52,6 +52,7 @@ Interface changes
       if fractional scaling support exists).
     - change --screenshot-tag-colorspace default value from `no` to `yes`
     - undeprecate vf_sub
+    - add `--playlist-recursive-dir`
  --- mpv 0.35.0 ---
     - add the `--vo=gpu-next` video output driver, as well as the options
       `--allow-delayed-peak-detect`, `--builtin-scalers`,

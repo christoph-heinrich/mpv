@@ -25,6 +25,7 @@
 #include "config.h"
 #include "common/common.h"
 #include "options/options.h"
+#include "options/m_config.h"
 #include "common/msg.h"
 #include "common/playlist.h"
 #include "misc/thread_tools.h"
@@ -35,6 +36,10 @@
 #include "demux.h"
 
 #define PROBE_SIZE (8 * 1024)
+
+struct demux_playlist_opts {
+    bool playlist_recursive_dir;
+};
 
 static bool check_mimetype(struct stream *s, const char *const *list)
 {
@@ -60,6 +65,7 @@ struct pl_parser {
     enum demux_check check_level;
     struct stream *real_stream;
     char *format;
+    struct demux_playlist_opts *opts;
 };
 
 
@@ -324,6 +330,7 @@ static bool scan_dir(struct pl_parser *p, char *path,
         return false;
     }
 
+    bool recursive = p->opts->playlist_recursive_dir;
     struct dirent *ep;
     while ((ep = readdir(dp))) {
         if (ep->d_name[0] == '.')
@@ -335,7 +342,7 @@ static bool scan_dir(struct pl_parser *p, char *path,
         char *file = mp_path_join(p, path, ep->d_name);
 
         struct stat st;
-        if (stat(file, &st) == 0 && S_ISDIR(st.st_mode)) {
+        if (recursive && stat(file, &st) == 0 && S_ISDIR(st.st_mode)) {
             for (int n = 0; n < num_dir_stack; n++) {
                 if (same_st(&dir_stack[n], &st)) {
                     MP_VERBOSE(p, "Skip recursive entry: %s\n", file);
@@ -459,6 +466,7 @@ static int open_file(struct demuxer *demuxer, enum demux_check check)
     p->error = false;
     p->s = demuxer->stream;
     p->utf16 = stream_skip_bom(p->s);
+    p->opts = mp_get_config_group(demuxer, demuxer->global, demuxer->desc->options);
     bool ok = fmt->parse(p) >= 0 && !p->error;
     if (p->add_base)
         playlist_add_base_path(p->pl, mp_dirname(demuxer->filename));
@@ -472,8 +480,20 @@ static int open_file(struct demuxer *demuxer, enum demux_check check)
     return ok ? 0 : -1;
 }
 
+#define OPT_BASE_STRUCT struct demux_playlist_opts
+
 const struct demuxer_desc demuxer_desc_playlist = {
     .name = "playlist",
     .desc = "Playlist file",
     .open = open_file,
+    .options = &(const struct m_sub_options){
+        .opts = (const struct m_option[]) {
+            {"playlist-recursive-dir", OPT_BOOL(playlist_recursive_dir)},
+            {0}
+        },
+        .size = sizeof(OPT_BASE_STRUCT),
+        .defaults = &(const OPT_BASE_STRUCT){
+            .playlist_recursive_dir = true
+        },
+    },
 };

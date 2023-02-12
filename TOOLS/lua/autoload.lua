@@ -101,7 +101,6 @@ table.append = function(t1, t2)
     for i = 1, #t2 do
         t1[t1_size + i] = t2[i]
     end
-    return t1
 end
 
 -- alphanum sorting for humans in Lua
@@ -179,7 +178,9 @@ function find_and_add_entries()
     table.filter(dirs, function(d)
         return not ((o.ignore_hidden and string.match(d, "^%.")))
     end)
-    alphanumsort(table.append(files, dirs))
+    alphanumsort(files)
+    alphanumsort(dirs)
+    table.append(files, dirs)
 
     if dir == "." then
         dir = ""

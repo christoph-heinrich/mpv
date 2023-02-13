@@ -125,15 +125,7 @@ function alphanumsort(filenames)
 end
 
 local autoloaded = nil
-
-function get_playlist_filenames()
-    local filenames = {}
-    local playlist = mp.get_property_native("playlist", {})
-    for _, entry in ipairs(playlist) do
-        filenames[entry.filename] = true
-    end
-    return filenames
-end
+local added_entries = {}
 
 function find_and_add_entries()
     local path = mp.get_property("path", "")
@@ -147,14 +139,17 @@ function find_and_add_entries()
         return
     end
 
-    pl_count = mp.get_property_number("playlist-count", 1)
+    local pl_count = mp.get_property_number("playlist-count", 1)
     -- check if this is a manually made playlist
     if (pl_count > 1 and autoloaded == nil) or
        (pl_count == 1 and EXTENSIONS[string.lower(get_extension(filename))] == nil) then
         msg.verbose("stopping: manually made playlist")
         return
     else
-        autoloaded = true
+        if pl_count == 1 then
+            autoloaded = true
+            added_entries = {}
+        end
     end
 
     local pl = mp.get_property_native("playlist", {})
@@ -203,8 +198,14 @@ function find_and_add_entries()
     end
     msg.trace("current file position in files: "..current)
 
+    -- treat already existing playlist entries, independent of how they got added
+    -- as if they got added by autoload
+    local playlist = mp.get_property_native("playlist", {})
+    for _, entry in ipairs(playlist) do
+        added_entries[entry.filename] = true
+    end
+
     local append = {[-1] = {}, [1] = {}}
-    local filenames = get_playlist_filenames()
     for direction = -1, 1, 2 do -- 2 iterations, with direction = -1 and +1
         for i = 1, MAXENTRIES do
             local file = files[current + i * direction]
@@ -213,18 +214,17 @@ function find_and_add_entries()
             end
 
             local filepath = dir .. file
-            -- skip files already in playlist
-            if filenames[file] then break end
+            -- skip files that are/were already in the playlist
+            if added_entries[filepath] then break end
 
             if direction == -1 then
-                if pl_current == 1 then -- never add additional entries in the middle
-                    msg.info("Prepending " .. file)
-                    table.insert(append[-1], 1, filepath)
-                end
+                msg.info("Prepending " .. filepath)
+                table.insert(append[-1], 1, filepath)
             else
-                msg.info("Adding " .. file)
+                msg.info("Adding " .. filepath)
                 table.insert(append[1], filepath)
             end
+            added_entries[filepath] = true
         end
     end
 

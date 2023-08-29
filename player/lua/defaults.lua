@@ -670,6 +670,9 @@ function overlay_mt.update(ov)
     cmd.name = "osd-overlay"
     cmd.res_x = math.floor(cmd.res_x)
     cmd.res_y = math.floor(cmd.res_y)
+    if type(cmd.data) == "table" then
+        cmd.data = table.concat(cmd.data)
+    end
     return mp.command_native(cmd)
 end
 

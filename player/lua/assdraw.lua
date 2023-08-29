@@ -1,9 +1,28 @@
 local ass_mt = {}
 ass_mt.__index = ass_mt
+local text_mt = {}
+text_mt.__index = text_mt
 local c = 0.551915024494 -- circle approximation
 
 local function ass_new()
-    return setmetatable({ scale = 4, text = "" }, ass_mt)
+    return setmetatable({ scale = 4, text = setmetatable({}, text_mt) }, ass_mt)
+end
+
+function text_mt.__concat(t1, t2)
+    if type(t2) == "table" then
+        if type(t1) == "table" then
+            local n = #t1
+            for i, e in ipairs(t2) do
+                t1[n + i] = e
+            end
+        else
+            t2[#t2 + 1] = t1
+            return t2
+        end
+    else
+        t1[#t1 + 1] = t2
+    end
+    return t1
 end
 
 function ass_mt.new_event(ass)
@@ -14,7 +33,7 @@ function ass_mt.new_event(ass)
 end
 
 function ass_mt.draw_start(ass)
-    ass.text = string.format("%s{\\p%d}", ass.text, ass.scale)
+    ass:append(string.format("{\\p%d}", ass.scale))
 end
 
 function ass_mt.draw_stop(ass)
@@ -25,7 +44,7 @@ function ass_mt.coord(ass, x, y)
     local scale = 2 ^ (ass.scale - 1)
     local ix = math.ceil(x * scale)
     local iy = math.ceil(y * scale)
-    ass.text = string.format("%s %d %d", ass.text, ix, iy)
+    ass:append(string.format(" %d %d", ix, iy))
 end
 
 function ass_mt.append(ass, s)

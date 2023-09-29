@@ -146,6 +146,14 @@ static int similarity_cross_correlation(float *a, float* b, int num_samples)
     return corr;
 }
 
+static int similarity_taxicab_distance(float *a, float* b, int num_samples)
+{
+    float corr = 0;
+    for (int i = 0; i < num_samples; i++)
+        corr += fabs(*a++ - *b++);
+    return -corr;
+}
+
 static int best_overlap_offset_float(struct priv *s)
 {
     float best_similarity = INT_MIN;
@@ -157,6 +165,7 @@ static int best_overlap_offset_float(struct priv *s)
         float *po = s->buf_overlap;
         po += s->num_channels;
         float similarity = similarity_cross_correlation(po, ps, s->samples_overlap - s->num_channels);
+        // float similarity = similarity_taxicab_distance(po, ps, s->samples_overlap - s->num_channels);
         if (similarity > best_similarity) {
             best_similarity = similarity;
             best_off  = off;

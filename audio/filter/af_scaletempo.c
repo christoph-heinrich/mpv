@@ -211,8 +211,8 @@ static void output_overlap_float(struct priv *s, void *buf_out,
     float *po   = s->buf_overlap;
     float *pin  = (float *)(s->buf_queue + bytes_off);
     for (int i = 0; i < s->samples_overlap; i++) {
-        *pout++ = *po - *pb++ *(*po - *pin++);
-        po++;
+        float f = *pb++;
+        *pout++ = *po++ * (1 - f) + *pin++ * f;
     }
 }
 

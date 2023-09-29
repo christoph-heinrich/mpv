@@ -149,9 +149,8 @@ static int best_overlap_offset_float(struct priv *s)
         float *ps = search_start;
         float *po = s->buf_overlap;
         po += s->num_channels;
-        float *pw  = s->table_window;
         for (int i = s->num_channels; i < s->samples_overlap; i++)
-            corr += *po++ * *ps++ * *pw++;
+            corr += *po++ * *ps++;
         if (corr > best_corr) {
             best_corr = corr;
             best_off  = off;
@@ -462,18 +461,6 @@ static bool reinit(struct mp_filter *f)
             }
             s->best_overlap_offset = best_overlap_offset_s16;
         } else {
-            s->table_window = realloc(s->table_window,
-                                        s->bytes_overlap - nch * bps);
-            if (!s->table_window) {
-                MP_FATAL(f, "Out of memory\n");
-                return false;
-            }
-            float *pw = s->table_window;
-            for (int i = 1; i < frames_overlap; i++) {
-                float v = i * (frames_overlap - i);
-                for (int j = 0; j < nch; j++)
-                    *pw++ = v;
-            }
             s->best_overlap_offset = best_overlap_offset_float;
         }
     }

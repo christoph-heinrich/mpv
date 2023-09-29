@@ -138,21 +138,27 @@ static bool fill_queue(struct priv *s)
 
 #define UNROLL_PADDING (4 * 4)
 
+static int similarity_cross_correlation(float *a, float* b, int num_samples)
+{
+    float corr = 0;
+    for (int i = 0; i < num_samples; i++)
+        corr += *a++ * *b++;
+    return corr;
+}
+
 static int best_overlap_offset_float(struct priv *s)
 {
-    float best_corr = INT_MIN;
+    float best_similarity = INT_MIN;
     int best_off = 0;
 
     float *search_start = (float *)s->buf_queue + s->num_channels;
     for (int off = 0; off < s->frames_search; off++) {
-        float corr = 0;
         float *ps = search_start;
         float *po = s->buf_overlap;
         po += s->num_channels;
-        for (int i = s->num_channels; i < s->samples_overlap; i++)
-            corr += *po++ * *ps++;
-        if (corr > best_corr) {
-            best_corr = corr;
+        float similarity = similarity_cross_correlation(po, ps, s->samples_overlap - s->num_channels);
+        if (similarity > best_similarity) {
+            best_similarity = similarity;
             best_off  = off;
         }
         search_start += s->num_channels;

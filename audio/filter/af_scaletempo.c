@@ -164,6 +164,19 @@ static int similarity_mean_squared_error(float *a, float* b, int num_samples)
     return -squared_error / num_samples;
 }
 
+static int similarity_cosine_similarity(float *a, float* b, int num_samples)
+{
+    float dot_product = 0;
+    float a_squared_sum = 0;
+    float b_squared_sum = 0;
+    for (int i = 0; i < num_samples; i++){
+        dot_product += a[i] * b[i];
+        a_squared_sum += a[i] * a[i];
+        b_squared_sum += b[i] * b[i];
+    }
+    return dot_product / sqrtf(a_squared_sum + b_squared_sum);
+}
+
 static int best_overlap_offset_float(struct priv *s)
 {
     float best_similarity = INT_MIN;
@@ -177,6 +190,7 @@ static int best_overlap_offset_float(struct priv *s)
         float similarity = similarity_cross_correlation(po, ps, s->samples_overlap - s->num_channels);
         // float similarity = similarity_taxicab_distance(po, ps, s->samples_overlap - s->num_channels);
         // float similarity = similarity_mean_squared_error(po, ps, s->samples_overlap - s->num_channels);
+        // float similarity = similarity_cosine_similarity(po, ps, s->samples_overlap - s->num_channels);
         if (similarity > best_similarity) {
             best_similarity = similarity;
             best_off  = off;

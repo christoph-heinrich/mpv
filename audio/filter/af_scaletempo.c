@@ -205,8 +205,8 @@ static int best_overlap_offset_float(struct priv *s)
         float *ps = search_start;
         float *po = s->buf_overlap;
         po += s->num_channels;
-        float similarity = similarity_cross_correlation(po, ps, s->samples_overlap - s->num_channels);
-        // float similarity = similarity_taxicab_distance(po, ps, s->samples_overlap - s->num_channels);
+        // float similarity = similarity_cross_correlation(po, ps, s->samples_overlap - s->num_channels);
+        float similarity = similarity_taxicab_distance(po, ps, s->samples_overlap - s->num_channels);
         // float similarity = similarity_minkowski_distance(po, ps, s->samples_overlap - s->num_channels);
         // float similarity = similarity_euclidean_distance(po, ps, s->samples_overlap - s->num_channels);
         // float similarity = similarity_mean_squared_error(po, ps, s->samples_overlap - s->num_channels);

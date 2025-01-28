@@ -130,6 +130,7 @@ const struct m_sub_options vd_lavc_conf = {
         {0}
     },
     .size = sizeof(struct vd_lavc_params),
+    .change_flags = UPDATE_VD,
     .defaults = &(const struct vd_lavc_params){
         .film_grain = -1 /*auto*/,
         .check_hw_profile = true,
